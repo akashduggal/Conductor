@@ -82,7 +82,7 @@ export const ExperimentDetailPage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card title="Configuration">
-          <ConfigEditor config={experiment.config} readOnly />
+          <ConfigEditor config={experiment.config} readOnly onChange={() => {}} />
         </Card>
 
         <Card title="Details">

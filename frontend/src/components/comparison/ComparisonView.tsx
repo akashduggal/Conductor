@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '../common/Button';
 import { LoadingSpinner } from '../common/LoadingSpinner';
 import { ExperimentSelector } from './ExperimentSelector';
@@ -18,6 +18,7 @@ export const ComparisonView = ({ experiments, loading }: ComparisonViewProps) =>
   const [comparison, setComparison] = useState<ComparisonData[] | null>(null);
   const [isComparing, setIsComparing] = useState(false);
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(['loss', 'accuracy']);
+  const [activeMetric, setActiveMetric] = useState<string>('loss');
 
   const handleToggle = (id: string) => {
     setSelectedIds((prev) =>
@@ -38,6 +39,14 @@ export const ComparisonView = ({ experiments, loading }: ComparisonViewProps) =>
         metrics: selectedMetrics,
       });
       setComparison(result.comparison);
+      const metricsWithData = selectedMetrics.filter((metric) =>
+        result.comparison.some(
+          (comp) => comp.metrics?.[metric]?.data_points?.length > 0
+        )
+      );
+      if (metricsWithData.length > 0 && !metricsWithData.includes(activeMetric)) {
+        setActiveMetric(metricsWithData[0]);
+      }
     } catch (error) {
       console.error('Error comparing experiments:', error);
       alert('Failed to compare experiments');
@@ -45,6 +54,15 @@ export const ComparisonView = ({ experiments, loading }: ComparisonViewProps) =>
       setIsComparing(false);
     }
   };
+
+  const metricsWithData = useMemo(() => {
+    if (!comparison) return [];
+    return selectedMetrics.filter((metric) =>
+      comparison.some(
+        (comp) => comp.metrics?.[metric]?.data_points?.length > 0
+      )
+    );
+  }, [comparison, selectedMetrics]);
 
   if (loading) {
     return (
@@ -113,16 +131,38 @@ export const ComparisonView = ({ experiments, loading }: ComparisonViewProps) =>
             </div>
           </Card>
 
-          {selectedMetrics.map((metric) => {
-            // Check if at least one experiment has data for this metric
-            const hasData = comparison.some((comp) => comp.metrics?.[metric]?.data_points?.length > 0);
-            if (!hasData) return null;
-            return (
-              <Card key={metric}>
-                <ComparisonChart comparison={comparison} metric={metric} />
-              </Card>
-            );
-          })}
+          {metricsWithData.length > 0 && (
+            <Card>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-zinc-400">Metric:</span>
+                  <div className="flex flex-wrap gap-2">
+                    {metricsWithData.map((metric) => {
+                      const isActive = metric === activeMetric;
+                      const label =
+                        metric.charAt(0).toUpperCase() + metric.slice(1);
+                      return (
+                        <button
+                          key={metric}
+                          type="button"
+                          onClick={() => setActiveMetric(metric)}
+                          className={
+                            isActive
+                              ? 'px-3 py-1 rounded-full text-xs font-medium bg-primary-500/20 text-primary-300 border border-primary-500/40'
+                              : 'px-3 py-1 rounded-full text-xs font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700'
+                          }
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <ComparisonChart comparison={comparison} metric={activeMetric} />
+              </div>
+            </Card>
+          )}
 
           <Card title="Summary Statistics">
             <div className="overflow-x-auto">
@@ -132,24 +172,12 @@ export const ComparisonView = ({ experiments, loading }: ComparisonViewProps) =>
                     <th className="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">
                       Experiment
                     </th>
-                    {selectedMetrics.map((metric) => (
-                      <th
-                        key={metric}
-                        colSpan={2}
-                        className="px-6 py-3 text-center text-xs font-medium text-zinc-400 uppercase"
-                      >
-                        {metric.charAt(0).toUpperCase() + metric.slice(1)}
-                      </th>
-                    ))}
-                  </tr>
-                  <tr>
-                    <th></th>
-                    {selectedMetrics.map((metric) => (
-                      <>
-                        <th className="px-6 py-2 text-xs font-medium text-zinc-500">Best</th>
-                        <th className="px-6 py-2 text-xs font-medium text-zinc-500">Final</th>
-                      </>
-                    ))}
+                    <th className="px-6 py-3 text-center text-xs font-medium text-zinc-400 uppercase">
+                      Best
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-zinc-400 uppercase">
+                      Final
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-zinc-900 divide-y divide-zinc-800">
@@ -158,34 +186,39 @@ export const ComparisonView = ({ experiments, loading }: ComparisonViewProps) =>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-100">
                         {comp.name}
                       </td>
-                      {selectedMetrics.map((metric) => {
-                        const metricData = comp.metrics?.[metric];
-                        if (!metricData || 
-                            metricData.min === undefined || 
-                            metricData.min === null ||
-                            metricData.final === undefined || 
-                            metricData.final === null) {
+                      {(() => {
+                        const metricData = comp.metrics?.[activeMetric];
+                        if (
+                          !metricData ||
+                          metricData.min === undefined ||
+                          metricData.min === null ||
+                          metricData.final === undefined ||
+                          metricData.final === null
+                        ) {
                           return (
-                            <td key={`${metric}-empty`} colSpan={2} className="px-6 py-4 whitespace-nowrap text-sm text-zinc-400">
+                            <td
+                              colSpan={2}
+                              className="px-6 py-4 whitespace-nowrap text-sm text-zinc-400 text-center"
+                            >
                               No data
                             </td>
                           );
                         }
                         return (
                           <>
-                            <td key={`${metric}-best`} className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
-                              {metric === 'accuracy'
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500 text-center">
+                              {activeMetric === 'accuracy'
                                 ? (metricData.min * 100).toFixed(2) + '%'
                                 : metricData.min.toFixed(4)}
                             </td>
-                            <td key={`${metric}-final`} className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500">
-                              {metric === 'accuracy'
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-500 text-center">
+                              {activeMetric === 'accuracy'
                                 ? (metricData.final * 100).toFixed(2) + '%'
                                 : metricData.final.toFixed(4)}
                             </td>
                           </>
                         );
-                      })}
+                      })()}
                     </tr>
                   ))}
                 </tbody>
