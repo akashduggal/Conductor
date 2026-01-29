@@ -8,11 +8,14 @@ interface AppLayoutProps {
 
 export const AppLayout = ({ children }: AppLayoutProps) => {
   return (
-    <div className="min-h-screen bg-zinc-950">
-      <Header />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 p-6">{children}</main>
+    <div className="flex h-screen bg-zinc-950">
+      {/* Sidebar stays fixed on the left */}
+      <Sidebar />
+
+      {/* Right column: header on top, content scrolls underneath */}
+      <div className="flex flex-1 flex-col h-screen">
+        <Header />
+        <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
   );

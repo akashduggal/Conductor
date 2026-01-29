@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, FlaskConical, Database, GitCompare } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { Logo } from './Logo';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -11,8 +12,13 @@ const navigation = [
 
 export const Sidebar = () => {
   return (
-    <aside className="w-14 bg-zinc-900 border-r border-zinc-800 min-h-screen flex flex-col items-center py-4">
-      <nav className="flex flex-col items-center gap-1 w-full">
+    <aside className="w-14 bg-zinc-900 border-r border-zinc-800 h-screen flex flex-col items-center">
+      {/* Top logo area aligned with header height */}
+      <div className="h-14 w-full flex items-center justify-center border-b border-zinc-800">
+        <Logo className="h-7 w-7 text-primary-400" />
+      </div>
+
+      <nav className="flex flex-col items-center gap-1 w-full py-4">
         {navigation.map((item) => (
           <div key={item.name} className="relative group w-full flex justify-center">
             <NavLink
