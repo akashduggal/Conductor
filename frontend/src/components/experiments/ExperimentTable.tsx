@@ -4,6 +4,7 @@ import { formatDate, formatRelativeTime } from '../../utils/formatters';
 import { Experiment } from '../../types/experiment';
 import { StatusBadge } from './StatusBadge';
 import { Button } from '../common/Button';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 interface ExperimentTableProps {
   experiments: Experiment[];
@@ -24,6 +25,10 @@ export const ExperimentTable = ({
   onDeleteExperiment,
 }: ExperimentTableProps) => {
   const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   if (loading) {
     return (
@@ -232,13 +237,10 @@ export const ExperimentTable = ({
                             className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-zinc-700 flex items-center gap-2"
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (
-                                window.confirm(
-                                  `Are you sure you want to delete "${experiment.name}"?`
-                                )
-                              ) {
-                                onDeleteExperiment(experiment.id);
-                              }
+                              setConfirmDelete({
+                                id: experiment.id,
+                                name: experiment.name,
+                              });
                               setActionMenuOpen(null);
                             }}
                           >
@@ -260,6 +262,32 @@ export const ExperimentTable = ({
           <p className="text-zinc-500">No experiments found</p>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title="Delete experiment"
+        description={
+          confirmDelete && (
+            <>
+              Are you sure you want to delete{' '}
+              <span className="font-semibold text-zinc-100">
+                {confirmDelete.name}
+              </span>
+              ? This action cannot be undone.
+            </>
+          )
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        destructive
+        onCancel={() => setConfirmDelete(null)}
+        onConfirm={() => {
+          if (confirmDelete) {
+            onDeleteExperiment(confirmDelete.id);
+            setConfirmDelete(null);
+          }
+        }}
+      />
     </div>
   );
 };
