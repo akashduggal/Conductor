@@ -158,8 +158,9 @@ The app runs `init_db()` on startup, which creates tables if they don’t exist.
 
 ## What Was Changed for Vercel
 
-- **`backend/app/index.py`** — Vercel looks for the FastAPI `app` at `app/index.py`; this file re-exports it from `app.main`.
-- **`backend/vercel.json`** — Sets `installCommand` and Python runtime for the serverless function.
+- **`backend/api/index.py`** — Serverless entrypoint that exports the FastAPI `app`; used with `builds` + `routes` so all requests hit the Python function.
+- **`backend/index.py`** and **`backend/app/index.py`** — Alternative entrypoints for framework auto-detection.
+- **`backend/vercel.json`** — Sets `installCommand`, `builds` (Python function from `api/index.py`), and `routes` (all paths → `api/index.py`).
 - **`backend/requirements.txt`** — Added `asyncpg` for PostgreSQL when using `postgresql+asyncpg://` in `DATABASE_URL`. PyTorch remains commented out to keep the bundle under Vercel’s size limit.
 
 ---
@@ -171,7 +172,7 @@ The app runs `init_db()` on startup, which creates tables if they don’t exist.
 | **Function size > 250 MB** | Ensure `torch`, `torchaudio`, and `torchvision` are **not** in `requirements.txt`. Use only the dependencies needed at runtime. |
 | **Database connection errors** | Use `postgresql+asyncpg://...` (with `asyncpg`). Ensure `DATABASE_URL` is set in Vercel and that the DB allows connections from Vercel’s IPs (Neon/Supabase do by default with SSL). |
 | **CORS errors from frontend** | Set `CORS_ORIGINS` to the exact frontend origin (e.g. `https://your-app.vercel.app`), then redeploy the backend. |
-| **404 on `/api/v1/...`** | Confirm Root Directory is `backend` and that the deployment used `app/index.py`. Check **Deployments → Function Logs** for import errors. |
+| **404 NOT_FOUND on root or any path** | Ensure **Root Directory** is `backend`. The repo uses `vercel.json` with `builds` + `routes` so all requests go to `api/index.py`. Redeploy after changes. If 404 persists, check **Deployments → Function Logs** for build/import errors. |
 | **Tables don’t exist** | Run `init_db()` once (by calling the API so the app starts) or run Alembic migrations locally against `DATABASE_URL`. |
 
 ---
