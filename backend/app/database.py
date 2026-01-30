@@ -1,9 +1,27 @@
+from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from app.config import settings
 
+
+def _normalize_asyncpg_url(url: str) -> str:
+    """For postgresql+asyncpg, asyncpg expects ssl= not sslmode= (sslmode causes TypeError)."""
+    if "postgresql+asyncpg" not in url:
+        return url
+    parsed = urlparse(url)
+    if not parsed.query:
+        return url
+    qs = parse_qs(parsed.query, keep_blank_values=True)
+    if "sslmode" not in qs:
+        return url
+    # Replace sslmode with ssl for asyncpg
+    qs["ssl"] = qs.pop("sslmode")
+    new_query = urlencode(qs, doseq=True)
+    return urlunparse(parsed._replace(query=new_query))
+
+
 engine = create_async_engine(
-    settings.database_url,
+    _normalize_asyncpg_url(settings.database_url),
     echo=False,
     future=True,
 )
