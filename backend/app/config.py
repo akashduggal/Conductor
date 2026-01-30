@@ -1,5 +1,12 @@
+import os
 from pydantic_settings import BaseSettings
 from typing import List
+
+
+def _get_cors_origins_list() -> List[str]:
+    """Read CORS_ORIGINS from env (comma-separated); never parsed as JSON (avoids Vercel/pydantic-settings issue)."""
+    raw = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000")
+    return [x.strip() for x in raw.split(",") if x.strip()]
 
 
 class Settings(BaseSettings):
@@ -11,13 +18,11 @@ class Settings(BaseSettings):
     
     # API
     api_v1_prefix: str = "/api/v1"
-    # Store as str so env CORS_ORIGINS is not JSON-parsed (Vercel sets a plain URL string)
-    cors_origins: str = "http://localhost:5173,http://localhost:3000"
+    # CORS is read via get_cors_origins_list() so pydantic-settings never tries to JSON-parse it
 
     @property
     def cors_origins_list(self) -> List[str]:
-        """CORS origins as a list (comma-separated string split)."""
-        return [x.strip() for x in self.cors_origins.split(",") if x.strip()]
+        return _get_cors_origins_list()
     
     # Security
     secret_key: str = "your-secret-key-change-in-production"
