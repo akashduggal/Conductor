@@ -1,71 +1,55 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import List
-from app.database import get_db
-from app.models.experiment import Experiment
-from app.models.metric import Metric
+from supabase import Client
+from app.supabase_client import get_supabase
 from app.schemas.api import ComparisonRequest, ComparisonResponse, ComparisonData
 
 router = APIRouter()
 
 
 @router.post("/experiments/compare", response_model=ComparisonResponse)
-async def compare_experiments(
+def compare_experiments(
     request: ComparisonRequest,
-    db: AsyncSession = Depends(get_db),
+    supabase: Client = Depends(get_supabase),
 ):
     comparison_data = []
-    
     for exp_id in request.experiment_ids:
-        # Get experiment
-        exp_result = await db.execute(
-            select(Experiment).where(Experiment.id == exp_id)
-        )
-        experiment = exp_result.scalar_one_or_none()
-        
-        if not experiment:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Experiment {exp_id} not found",
-            )
-        
-        # Get latest job
-        from app.models.job import TrainingJob
-        job_result = await db.execute(
-            select(TrainingJob)
-            .where(TrainingJob.experiment_id == exp_id)
-            .order_by(TrainingJob.created_at.desc())
+        exp_res = supabase.table("experiments").select("*").eq("id", exp_id).maybe_single().execute()
+        if not exp_res.data:
+            raise HTTPException(status_code=404, detail=f"Experiment {exp_id} not found")
+        experiment = exp_res.data
+
+        job_res = (
+            supabase.table("training_jobs")
+            .select("*")
+            .eq("experiment_id", exp_id)
+            .order("created_at", desc=True)
             .limit(1)
+            .execute()
         )
-        job = job_result.scalar_one_or_none()
-        
-        if not job:
+        jobs = job_res.data or []
+        if not jobs:
             continue
-        
-        # Get metrics for this job
-        metrics_result = await db.execute(
-            select(Metric)
-            .where(Metric.job_id == job.id)
-            .order_by(Metric.epoch, Metric.step)
+        job = jobs[0]
+
+        metrics_res = (
+            supabase.table("metrics")
+            .select("*")
+            .eq("job_id", job["id"])
+            .order("epoch")
+            .order("step")
+            .execute()
         )
-        metrics = metrics_result.scalars().all()
-        
-        # Build metrics data
+        metrics = metrics_res.data or []
+
         metrics_dict = {}
         for metric_name in request.metrics:
             values = []
             data_points = []
-            
             for m in metrics:
-                value = getattr(m, metric_name, None)
+                value = m.get(metric_name)
                 if value is not None:
                     values.append(float(value))
-                    data_points.append({
-                        "epoch": m.epoch,
-                        "value": float(value),
-                    })
-            
+                    data_points.append({"epoch": m["epoch"], "value": float(value)})
             if values:
                 metrics_dict[metric_name] = {
                     "min": min(values),
@@ -73,17 +57,18 @@ async def compare_experiments(
                     "final": values[-1],
                     "data_points": data_points,
                 }
-        
+
+        config = experiment.get("config") or {}
+        hp = config.get("hyperparameters") or {}
         comparison_data.append(
             ComparisonData(
                 experiment_id=exp_id,
-                name=experiment.name,
+                name=experiment["name"],
                 config={
-                    "batch_size": experiment.config["hyperparameters"]["batch_size"],
-                    "learning_rate": experiment.config["hyperparameters"]["learning_rate"],
+                    "batch_size": hp.get("batch_size"),
+                    "learning_rate": hp.get("learning_rate"),
                 },
                 metrics=metrics_dict,
             )
         )
-    
     return ComparisonResponse(comparison=comparison_data)

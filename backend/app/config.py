@@ -11,9 +11,10 @@ def _get_cors_origins_list() -> List[str]:
 
 
 class Settings(BaseSettings):
-    # Database
-    database_url: str = "sqlite+aiosqlite:///./ml_dashboard.db"
-    
+    # Supabase (set in .env / Vercel)
+    supabase_url: str = "https://your-project.supabase.co"
+    supabase_service_key: str = ""  # Service role key (server-side only; never expose to frontend)
+
     # Redis
     redis_url: str = "redis://localhost:6379"
     
@@ -33,8 +34,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     
     class Config:
-        env_file = ".env"
+        env_file = [".env.local", ".env"]
         case_sensitive = False
+        extra = "ignore"  # ignore extra env vars (e.g. AUTO_SEED, VERCEL_OIDC_TOKEN)
 
 
 settings = Settings()

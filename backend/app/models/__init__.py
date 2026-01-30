@@ -1,6 +1,2 @@
-from .dataset import Dataset
-from .experiment import Experiment
-from .job import TrainingJob
-from .metric import Metric
-
-__all__ = ["Dataset", "Experiment", "TrainingJob", "Metric"]
+# Models are defined in Supabase (see supabase/schema.sql).
+# Request/response shapes are in app.schemas.

@@ -1,36 +1,32 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.database import get_db
-from app.models.job import TrainingJob
+from supabase import Client
+from app.supabase_client import get_supabase
 from app.schemas.job import TrainingJobResponse
 
 router = APIRouter()
 
 
 @router.get("/{job_id}", response_model=TrainingJobResponse)
-async def get_job(
+def get_job(
     job_id: str,
-    db: AsyncSession = Depends(get_db),
+    supabase: Client = Depends(get_supabase),
 ):
-    result = await db.execute(select(TrainingJob).where(TrainingJob.id == job_id))
-    job = result.scalar_one_or_none()
-    
-    if not job:
+    res = supabase.table("training_jobs").select("*").eq("id", job_id).maybe_single().execute()
+    if not res.data:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+    j = res.data
     return TrainingJobResponse(
-        id=job.id,
-        experiment_id=job.experiment_id,
-        status=job.status,
-        progress=float(job.progress),
-        current_epoch=job.current_epoch,
-        total_epochs=job.total_epochs,
-        logs=job.logs,
-        error_message=job.error_message,
-        started_at=job.started_at,
-        completed_at=job.completed_at,
-        created_at=job.created_at,
-        avg_epoch_time=float(job.avg_epoch_time) if job.avg_epoch_time else None,
-        estimated_completion=job.estimated_completion,
+        id=j["id"],
+        experiment_id=j["experiment_id"],
+        status=j["status"],
+        progress=float(j.get("progress") or 0),
+        current_epoch=int(j.get("current_epoch") or 0),
+        total_epochs=int(j["total_epochs"]),
+        logs=j.get("logs"),
+        error_message=j.get("error_message"),
+        started_at=j.get("started_at"),
+        completed_at=j.get("completed_at"),
+        created_at=j.get("created_at"),
+        avg_epoch_time=float(j["avg_epoch_time"]) if j.get("avg_epoch_time") is not None else None,
+        estimated_completion=j.get("estimated_completion"),
     )

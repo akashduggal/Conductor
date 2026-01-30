@@ -1,66 +1,50 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, case
-from app.database import get_db
-from app.models.experiment import Experiment
-from app.models.dataset import Dataset
-from app.models.job import TrainingJob
+from app.supabase_client import get_supabase
+from supabase import Client
 from app.schemas.api import StatsOverview
 
 router = APIRouter()
 
 
 @router.get("/stats/overview", response_model=StatsOverview)
-async def get_stats_overview(db: AsyncSession = Depends(get_db)):
-    # Experiments stats
-    exp_result = await db.execute(
-        select(
-            func.count(Experiment.id).label("total"),
-            func.sum(case((Experiment.status == "running", 1), else_=0)).label("running"),
-            func.sum(case((Experiment.status == "completed", 1), else_=0)).label("completed"),
-            func.sum(case((Experiment.status == "failed", 1), else_=0)).label("failed"),
-            func.sum(case((Experiment.status == "cancelled", 1), else_=0)).label("cancelled"),
-        )
-    )
-    exp_stats = exp_result.first()
-    
-    # Datasets stats
-    dataset_result = await db.execute(
-        select(
-            func.count(Dataset.id).label("total"),
-            func.sum(Dataset.size_bytes).label("total_size_bytes"),
-        )
-    )
-    dataset_stats = dataset_result.first()
-    
-    # Modality breakdown
-    modality_result = await db.execute(
-        select(Dataset.modality, func.count(Dataset.id).label("count"))
-        .group_by(Dataset.modality)
-    )
-    modality_counts = {row.modality: row.count for row in modality_result.all()}
-    
-    # Jobs stats
-    job_result = await db.execute(
-        select(
-            func.sum(case((TrainingJob.status == "running", 1), else_=0)).label("active"),
-            func.sum(case((TrainingJob.status == "pending", 1), else_=0)).label("queued"),
-        )
-    )
-    job_stats = job_result.first()
-    
-    total_size_gb = (dataset_stats.total_size_bytes or 0) / (1024 ** 3)
-    
+def get_stats_overview(supabase: Client = Depends(get_supabase)):
+    # Experiments: fetch all and aggregate
+    exp_res = supabase.table("experiments").select("*").execute()
+    experiments = exp_res.data or []
+    exp_total = len(experiments)
+    exp_running = sum(1 for e in experiments if e.get("status") == "running")
+    exp_completed = sum(1 for e in experiments if e.get("status") == "completed")
+    exp_failed = sum(1 for e in experiments if e.get("status") == "failed")
+    exp_cancelled = sum(1 for e in experiments if e.get("status") == "cancelled")
+
+    # Datasets
+    ds_res = supabase.table("datasets").select("*").execute()
+    datasets = ds_res.data or []
+    ds_total = len(datasets)
+    total_size_bytes = sum((d.get("size_bytes") or 0) for d in datasets)
+    modality_counts = {}
+    for d in datasets:
+        m = d.get("modality") or "unknown"
+        modality_counts[m] = modality_counts.get(m, 0) + 1
+
+    # Jobs
+    jobs_res = supabase.table("training_jobs").select("status").execute()
+    jobs = jobs_res.data or []
+    job_active = sum(1 for j in jobs if j.get("status") == "running")
+    job_queued = sum(1 for j in jobs if j.get("status") == "pending")
+
+    total_size_gb = total_size_bytes / (1024**3)
+
     return StatsOverview(
         experiments={
-            "total": exp_stats.total or 0,
-            "running": exp_stats.running or 0,
-            "completed": exp_stats.completed or 0,
-            "failed": exp_stats.failed or 0,
-            "cancelled": exp_stats.cancelled or 0,
+            "total": exp_total,
+            "running": exp_running,
+            "completed": exp_completed,
+            "failed": exp_failed,
+            "cancelled": exp_cancelled,
         },
         datasets={
-            "total": dataset_stats.total or 0,
+            "total": ds_total,
             "by_modality": {
                 "text": modality_counts.get("text", 0),
                 "image": modality_counts.get("image", 0),
@@ -71,8 +55,8 @@ async def get_stats_overview(db: AsyncSession = Depends(get_db)):
             "total_size_gb": round(total_size_gb, 2),
         },
         jobs={
-            "active": job_stats.active or 0,
-            "queued": job_stats.queued or 0,
-            "avg_duration_minutes": 245,  # Could calculate from completed jobs
+            "active": job_active,
+            "queued": job_queued,
+            "avg_duration_minutes": 245,
         },
     )

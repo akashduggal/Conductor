@@ -1,20 +1,17 @@
 """
-Database seeder script to populate the database with demo data.
+Database seeder script to populate Supabase with demo data.
 Run with: python -m app.utils.seed_data
+Requires: SUPABASE_URL and SUPABASE_SERVICE_KEY in .env.local / .env
+Create tables first: run supabase/schema.sql in Supabase SQL Editor.
 """
-import asyncio
+import uuid
 from datetime import datetime, timedelta
-from sqlalchemy import select
-from app.database import AsyncSessionLocal, init_db
-from app.models.dataset import Dataset
-from app.models.experiment import Experiment
-from app.models.job import TrainingJob
-from app.models.metric import Metric
+from app.supabase_client import get_supabase
 from app.utils.simulation import generate_training_metrics
 
 
-async def seed_datasets(db):
-    """Seed datasets table"""
+def seed_datasets(supabase):
+    """Seed datasets table (column is 'metadata' in Supabase)."""
     datasets_data = [
         {
             "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -88,20 +85,15 @@ async def seed_datasets(db):
     ]
 
     for data in datasets_data:
-        result = await db.execute(select(Dataset).where(Dataset.id == data["id"]))
-        existing = result.scalar_one_or_none()
-        
-        if not existing:
-            dataset = Dataset(**data)
-            db.add(dataset)
+        existing = supabase.table("datasets").select("id").eq("id", data["id"]).maybe_single().execute()
+        if not existing.data:
+            supabase.table("datasets").insert(data).execute()
             print(f"✓ Created dataset: {data['name']}")
         else:
             print(f"⊘ Dataset already exists: {data['name']}")
 
-    await db.commit()
 
-
-async def seed_experiments(db):
+def seed_experiments(supabase):
     """Seed experiments table"""
     experiments_data = [
         {
@@ -119,19 +111,11 @@ async def seed_experiments(db):
                     "num_epochs": 100,
                     "weight_decay": 0.01,
                 },
-                "architecture": {
-                    "hidden_size": 768,
-                    "num_layers": 12,
-                    "num_heads": 12,
-                },
-                "data_config": {
-                    "train_split": 0.8,
-                    "val_split": 0.1,
-                    "test_split": 0.1,
-                },
+                "architecture": {"hidden_size": 768, "num_layers": 12, "num_heads": 12},
+                "data_config": {"train_split": 0.8, "val_split": 0.1, "test_split": 0.1},
             },
-            "created_at": datetime.utcnow() - timedelta(days=2),
-            "started_at": datetime.utcnow() - timedelta(days=2, hours=1),
+            "created_at": (datetime.utcnow() - timedelta(days=2)).isoformat(),
+            "started_at": (datetime.utcnow() - timedelta(days=2, hours=1)).isoformat(),
             "tags": ["vision", "transformer", "production"],
         },
         {
@@ -150,9 +134,9 @@ async def seed_experiments(db):
                     "weight_decay": 0.0001,
                 },
             },
-            "created_at": datetime.utcnow() - timedelta(days=5),
-            "started_at": datetime.utcnow() - timedelta(days=5, hours=1),
-            "completed_at": datetime.utcnow() - timedelta(days=3),
+            "created_at": (datetime.utcnow() - timedelta(days=5)).isoformat(),
+            "started_at": (datetime.utcnow() - timedelta(days=5, hours=1)).isoformat(),
+            "completed_at": (datetime.utcnow() - timedelta(days=3)).isoformat(),
             "tags": ["audio", "speech"],
         },
         {
@@ -171,9 +155,9 @@ async def seed_experiments(db):
                     "weight_decay": 0.01,
                 },
             },
-            "created_at": datetime.utcnow() - timedelta(days=7),
-            "started_at": datetime.utcnow() - timedelta(days=7, hours=1),
-            "completed_at": datetime.utcnow() - timedelta(days=4),
+            "created_at": (datetime.utcnow() - timedelta(days=7)).isoformat(),
+            "started_at": (datetime.utcnow() - timedelta(days=7, hours=1)).isoformat(),
+            "completed_at": (datetime.utcnow() - timedelta(days=4)).isoformat(),
             "tags": ["vision", "baseline"],
         },
         {
@@ -192,7 +176,7 @@ async def seed_experiments(db):
                     "weight_decay": 0.01,
                 },
             },
-            "created_at": datetime.utcnow() - timedelta(hours=2),
+            "created_at": (datetime.utcnow() - timedelta(hours=2)).isoformat(),
             "tags": ["nlp", "llm"],
         },
         {
@@ -211,7 +195,7 @@ async def seed_experiments(db):
                     "weight_decay": 0.005,
                 },
             },
-            "created_at": datetime.utcnow() - timedelta(hours=1),
+            "created_at": (datetime.utcnow() - timedelta(hours=1)).isoformat(),
             "tags": ["multimodal", "fusion", "experimental"],
         },
         {
@@ -230,120 +214,101 @@ async def seed_experiments(db):
                     "weight_decay": 0.001,
                 },
             },
-            "created_at": datetime.utcnow() - timedelta(days=3),
-            "started_at": datetime.utcnow() - timedelta(days=3, hours=1),
-            "completed_at": datetime.utcnow() - timedelta(days=2),
+            "created_at": (datetime.utcnow() - timedelta(days=3)).isoformat(),
+            "started_at": (datetime.utcnow() - timedelta(days=3, hours=1)).isoformat(),
+            "completed_at": (datetime.utcnow() - timedelta(days=2)).isoformat(),
             "tags": ["video", "action"],
         },
     ]
 
     for data in experiments_data:
-        result = await db.execute(select(Experiment).where(Experiment.id == data["id"]))
-        existing = result.scalar_one_or_none()
-        
-        if not existing:
-            experiment = Experiment(**data)
-            db.add(experiment)
+        existing = supabase.table("experiments").select("id").eq("id", data["id"]).maybe_single().execute()
+        if not existing.data:
+            supabase.table("experiments").insert(data).execute()
             print(f"✓ Created experiment: {data['name']}")
         else:
             print(f"⊘ Experiment already exists: {data['name']}")
 
-    await db.commit()
 
-
-async def seed_jobs_and_metrics(db):
+def seed_jobs_and_metrics(supabase):
     """Seed training jobs and metrics"""
-    # Get experiments
-    result = await db.execute(select(Experiment))
-    experiments = result.scalars().all()
+    res = supabase.table("experiments").select("*").execute()
+    experiments = res.data or []
 
     for exp in experiments:
-        if exp.status in ["running", "completed", "failed"]:
-            # Create job
-            job_id = f"job-{exp.id}"
-            result = await db.execute(select(TrainingJob).where(TrainingJob.id == job_id))
-            existing_job = result.scalar_one_or_none()
-            
-            if existing_job:
-                print(f"⊘ Job already exists for: {exp.name}")
-                continue
+        if exp["status"] not in ["running", "completed", "failed"]:
+            continue
+        job_id = f"job-{exp['id']}"
+        existing = supabase.table("training_jobs").select("id").eq("id", job_id).maybe_single().execute()
+        if existing.data:
+            print(f"⊘ Job already exists for: {exp['name']}")
+            continue
 
-            total_epochs = exp.config["hyperparameters"]["num_epochs"]
-            steps_per_epoch = 250
-            
-            # Determine progress based on status
-            if exp.status == "completed":
-                current_epoch = total_epochs - 1
-                progress = 100.0
-            elif exp.status == "running":
-                current_epoch = 42  # Simulate mid-training
-                progress = (current_epoch / total_epochs) * 100
-            else:  # failed
-                current_epoch = 15
-                progress = (current_epoch / total_epochs) * 100
+        config = exp.get("config") or {}
+        hp = config.get("hyperparameters") or {}
+        total_epochs = hp.get("num_epochs", 10)
+        steps_per_epoch = 250
 
-            job = TrainingJob(
-                id=job_id,
-                experiment_id=exp.id,
-                status=exp.status,
-                progress=progress,
-                current_epoch=current_epoch,
-                total_epochs=total_epochs,
-                started_at=exp.started_at,
-                completed_at=exp.completed_at if exp.status != "running" else None,
-                error_message="Out of memory error" if exp.status == "failed" else None,
-            )
-            db.add(job)
-            await db.flush()
+        if exp["status"] == "completed":
+            current_epoch = total_epochs - 1
+            progress = 100.0
+        elif exp["status"] == "running":
+            current_epoch = 42
+            progress = (current_epoch / total_epochs) * 100
+        else:
+            current_epoch = 15
+            progress = (current_epoch / total_epochs) * 100
 
-            # Generate metrics
-            metrics_count = 0
-            for epoch in range(current_epoch + 1):
-                for step in range(0, steps_per_epoch, 25):
-                    metrics_data = generate_training_metrics(epoch, step, total_epochs)
-                    
-                    metric = Metric(
-                        job_id=job_id,
-                        epoch=epoch,
-                        step=step,
-                        loss=metrics_data["loss"],
-                        accuracy=metrics_data["accuracy"],
-                        learning_rate=metrics_data["learning_rate"],
-                        throughput=metrics_data["throughput"],
-                        timestamp=exp.started_at + timedelta(
-                            seconds=(epoch * steps_per_epoch + step) * 2
-                        ) if exp.started_at else datetime.utcnow(),
-                    )
-                    db.add(metric)
-                    metrics_count += 1
+        job_payload = {
+            "id": job_id,
+            "experiment_id": exp["id"],
+            "status": exp["status"],
+            "progress": progress,
+            "current_epoch": current_epoch,
+            "total_epochs": total_epochs,
+            "started_at": exp.get("started_at"),
+            "completed_at": exp.get("completed_at") if exp["status"] != "running" else None,
+            "error_message": "Out of memory error" if exp["status"] == "failed" else None,
+        }
+        supabase.table("training_jobs").insert(job_payload).execute()
 
-            print(f"✓ Created job with {metrics_count} metrics for: {exp.name}")
+        metrics_count = 0
+        started_at = exp.get("started_at") or datetime.utcnow().isoformat()
+        for epoch in range(current_epoch + 1):
+            for step in range(0, steps_per_epoch, 25):
+                metrics_data = generate_training_metrics(epoch, step, total_epochs)
+                ts = datetime.utcnow() + timedelta(seconds=(epoch * steps_per_epoch + step) * 2)
+                supabase.table("metrics").insert({
+                    "id": str(uuid.uuid4()),
+                    "job_id": job_id,
+                    "epoch": epoch,
+                    "step": step,
+                    "loss": metrics_data["loss"],
+                    "accuracy": metrics_data["accuracy"],
+                    "learning_rate": metrics_data["learning_rate"],
+                    "throughput": metrics_data["throughput"],
+                    "timestamp": ts.isoformat(),
+                }).execute()
+                metrics_count += 1
 
-    await db.commit()
+        print(f"✓ Created job with {metrics_count} metrics for: {exp['name']}")
 
 
-async def main():
+def main():
     """Main seeding function"""
-    print("🌱 Starting database seeding...")
+    print("🌱 Starting Supabase seeding...")
     print("=" * 50)
-    
-    # Initialize database
-    await init_db()
-    
-    async with AsyncSessionLocal() as db:
-        print("\n📦 Seeding datasets...")
-        await seed_datasets(db)
-        
-        print("\n🧪 Seeding experiments...")
-        await seed_experiments(db)
-        
-        print("\n⚙️  Seeding training jobs and metrics...")
-        await seed_jobs_and_metrics(db)
-    
+    supabase = get_supabase()
+    print("\n📦 Seeding datasets...")
+    seed_datasets(supabase)
+    print("\n🧪 Seeding experiments...")
+    seed_experiments(supabase)
+    print("\n⚙️  Seeding training jobs and metrics...")
+    seed_jobs_and_metrics(supabase)
     print("\n" + "=" * 50)
     print("✅ Database seeding completed!")
     print("\nYou can now start the backend and frontend to see the demo data.")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
