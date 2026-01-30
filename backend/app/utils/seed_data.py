@@ -85,8 +85,8 @@ def seed_datasets(supabase):
     ]
 
     for data in datasets_data:
-        existing = supabase.table("datasets").select("id").eq("id", data["id"]).maybe_single().execute()
-        if not existing.data:
+        res = supabase.table("datasets").select("id").eq("id", data["id"]).maybe_single().execute()
+        if not res or not getattr(res, "data", None):
             supabase.table("datasets").insert(data).execute()
             print(f"✓ Created dataset: {data['name']}")
         else:
@@ -222,8 +222,8 @@ def seed_experiments(supabase):
     ]
 
     for data in experiments_data:
-        existing = supabase.table("experiments").select("id").eq("id", data["id"]).maybe_single().execute()
-        if not existing.data:
+        res = supabase.table("experiments").select("id").eq("id", data["id"]).maybe_single().execute()
+        if not res or not getattr(res, "data", None):
             supabase.table("experiments").insert(data).execute()
             print(f"✓ Created experiment: {data['name']}")
         else:
@@ -233,14 +233,14 @@ def seed_experiments(supabase):
 def seed_jobs_and_metrics(supabase):
     """Seed training jobs and metrics"""
     res = supabase.table("experiments").select("*").execute()
-    experiments = res.data or []
+    experiments = (res.data if res else None) or []
 
     for exp in experiments:
         if exp["status"] not in ["running", "completed", "failed"]:
             continue
         job_id = f"job-{exp['id']}"
-        existing = supabase.table("training_jobs").select("id").eq("id", job_id).maybe_single().execute()
-        if existing.data:
+        res = supabase.table("training_jobs").select("id").eq("id", job_id).maybe_single().execute()
+        if res and getattr(res, "data", None):
             print(f"⊘ Job already exists for: {exp['name']}")
             continue
 

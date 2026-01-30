@@ -45,7 +45,7 @@ async def startup_event():
         try:
             supabase = get_supabase()
             res = supabase.table("datasets").select("id").limit(1).execute()
-            rows = res.data or []
+            rows = (res.data if res else None) or []
             if len(rows) == 0:
                 print("📦 Database is empty. Auto-seeding with demo data...")
                 seed_datasets(supabase)
