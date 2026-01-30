@@ -86,8 +86,8 @@ Wait for the build to finish. The backend will be available at:
 
 The app runs `init_db()` on startup, which creates tables if they don’t exist. With **PostgreSQL**, that runs on the first request (cold start).
 
-- If **AUTO_SEED** is `true` and the DB is empty, the app will also seed demo data on that first run.
-- If you use **Alembic** instead, run migrations against your `DATABASE_URL` from your local machine once:
+- On Vercel, the app skips DB init at startup; run migrations once to create tables (see below).
+- **Run Alembic migrations once** from your machine against the same `DATABASE_URL` you set in Vercel:
 
   ```bash
   cd backend

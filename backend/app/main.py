@@ -25,33 +25,32 @@ app.include_router(api_router, prefix=settings.api_v1_prefix)
 
 @app.on_event("startup")
 async def startup_event():
-    await init_db()
-    
-    # Auto-seed database if empty (for demo purposes)
-    # Set AUTO_SEED=false in .env to disable
     import os
+    # On Vercel (and when SKIP_DB_INIT=1), skip DB init at startup to avoid "Device or resource busy" in serverless
+    if os.getenv("VERCEL") == "1" or os.getenv("SKIP_DB_INIT", "").lower() in ("1", "true", "yes"):
+        return
+    await init_db()
+    # Auto-seed database if empty (for demo purposes); Set AUTO_SEED=false in .env to disable
     auto_seed = os.getenv("AUTO_SEED", "true").lower() == "true"
-    
-    if auto_seed:
-        from sqlalchemy import select, func
-        from app.models.dataset import Dataset
-        from app.database import AsyncSessionLocal
-        
-        async with AsyncSessionLocal() as db:
-            result = await db.execute(select(func.count(Dataset.id)))
-            count = result.scalar() or 0
-            
-            if count == 0:
-                print("📦 Database is empty. Auto-seeding with demo data...")
-                try:
-                    from app.utils.seed_data import seed_datasets, seed_experiments, seed_jobs_and_metrics
-                    await seed_datasets(db)
-                    await seed_experiments(db)
-                    await seed_jobs_and_metrics(db)
-                    print("✅ Demo data seeded successfully!")
-                except Exception as e:
-                    print(f"⚠️  Error seeding database: {e}")
-                    print("   You can manually seed with: python -m app.utils.seed_data")
+    if not auto_seed:
+        return
+    from sqlalchemy import select, func
+    from app.models.dataset import Dataset
+    from app.database import AsyncSessionLocal
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(func.count(Dataset.id)))
+        count = result.scalar() or 0
+        if count == 0:
+            print("📦 Database is empty. Auto-seeding with demo data...")
+            try:
+                from app.utils.seed_data import seed_datasets, seed_experiments, seed_jobs_and_metrics
+                await seed_datasets(db)
+                await seed_experiments(db)
+                await seed_jobs_and_metrics(db)
+                print("✅ Demo data seeded successfully!")
+            except Exception as e:
+                print(f"⚠️  Error seeding database: {e}")
+                print("   You can manually seed with: python -m app.utils.seed_data")
 
 
 @app.get("/health")
