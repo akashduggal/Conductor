@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, case
 from app.database import get_db
 from app.models.experiment import Experiment
 from app.models.dataset import Dataset
@@ -16,10 +16,10 @@ async def get_stats_overview(db: AsyncSession = Depends(get_db)):
     exp_result = await db.execute(
         select(
             func.count(Experiment.id).label("total"),
-            func.sum(func.cast(Experiment.status == "running", func.Integer)).label("running"),
-            func.sum(func.cast(Experiment.status == "completed", func.Integer)).label("completed"),
-            func.sum(func.cast(Experiment.status == "failed", func.Integer)).label("failed"),
-            func.sum(func.cast(Experiment.status == "cancelled", func.Integer)).label("cancelled"),
+            func.sum(case((Experiment.status == "running", 1), else_=0)).label("running"),
+            func.sum(case((Experiment.status == "completed", 1), else_=0)).label("completed"),
+            func.sum(case((Experiment.status == "failed", 1), else_=0)).label("failed"),
+            func.sum(case((Experiment.status == "cancelled", 1), else_=0)).label("cancelled"),
         )
     )
     exp_stats = exp_result.first()
@@ -43,8 +43,8 @@ async def get_stats_overview(db: AsyncSession = Depends(get_db)):
     # Jobs stats
     job_result = await db.execute(
         select(
-            func.sum(func.cast(TrainingJob.status == "running", func.Integer)).label("active"),
-            func.sum(func.cast(TrainingJob.status == "pending", func.Integer)).label("queued"),
+            func.sum(case((TrainingJob.status == "running", 1), else_=0)).label("active"),
+            func.sum(case((TrainingJob.status == "pending", 1), else_=0)).label("queued"),
         )
     )
     job_stats = job_result.first()

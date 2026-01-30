@@ -144,6 +144,12 @@ VITE_API_URL=http://localhost:8000/api/v1
 VITE_WS_URL=ws://localhost:8000
 ```
 
+## 🚀 Deploying to Vercel
+
+To deploy the **backend** on Vercel (with a hosted Postgres DB), follow the step-by-step guide:
+
+- **[DEPLOY_VERCEL.md](./DEPLOY_VERCEL.md)** — Prerequisites, database setup (Neon/Supabase), Vercel project config, env vars, deploy, and troubleshooting.
+
 ## 🧪 Testing
 
 ### Backend Tests
