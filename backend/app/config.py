@@ -1,5 +1,15 @@
 from pydantic_settings import BaseSettings
-from typing import List
+from pydantic import field_validator
+from typing import List, Union
+
+
+def _parse_cors_origins(v: Union[str, list]) -> List[str]:
+    """Accept CORS_ORIGINS as comma-separated string or JSON array (for Vercel env)."""
+    if isinstance(v, list):
+        return [str(x).strip() for x in v if x]
+    if isinstance(v, str):
+        return [x.strip() for x in v.split(",") if x.strip()]
+    return []
 
 
 class Settings(BaseSettings):
@@ -12,6 +22,11 @@ class Settings(BaseSettings):
     # API
     api_v1_prefix: str = "/api/v1"
     cors_origins: List[str] = ["http://localhost:5173", "http://localhost:3000"]
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: Union[str, list]) -> List[str]:
+        return _parse_cors_origins(v)
     
     # Security
     secret_key: str = "your-secret-key-change-in-production"
