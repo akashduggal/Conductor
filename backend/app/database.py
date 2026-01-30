@@ -1,6 +1,7 @@
 from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+from sqlalchemy.pool import NullPool
 from app.config import settings
 
 
@@ -20,10 +21,14 @@ def _normalize_asyncpg_url(url: str) -> str:
     return urlunparse(parsed._replace(query=new_query))
 
 
+# NullPool: no connection pooling — required for serverless (Vercel) to avoid "Device or resource busy"
+_engine_kw: dict = {"echo": False, "future": True}
+if "postgresql+asyncpg" in settings.database_url:
+    _engine_kw["poolclass"] = NullPool
+
 engine = create_async_engine(
     _normalize_asyncpg_url(settings.database_url),
-    echo=False,
-    future=True,
+    **_engine_kw,
 )
 
 AsyncSessionLocal = async_sessionmaker(

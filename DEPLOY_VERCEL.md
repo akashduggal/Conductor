@@ -60,7 +60,7 @@ In the Vercel project, go to **Settings → Environment Variables** and add:
 | Name | Value | Notes |
 |------|--------|--------|
 | `DATABASE_URL` | `postgresql+asyncpg://USER:PASSWORD@HOST/DB?sslmode=require` | From Step 1 (Neon or Supabase). **Required.** |
-| `CORS_ORIGINS` | `https://your-frontend.vercel.app` | Your frontend URL(s), comma-separated. Replace with your real frontend URL after you deploy it. |
+| `CORS_ORIGINS` | `https://your-frontend.vercel.app` | Your frontend URL. **If you see "error parsing value for field cors_origins"**, the live build may be old — set this to a **JSON array** instead: `["https://your-frontend.vercel.app"]` (then redeploy). |
 | `API_V1_PREFIX` | `/api/v1` | Leave as-is unless you changed it in code. |
 | `SECRET_KEY` | A long random string | Generate one (e.g. `openssl rand -hex 32`) for production. |
 | `AUTO_SEED` | `true` | Set to `true` to seed demo data on first deploy; set to `false` after first run or for production. |
@@ -135,24 +135,32 @@ The app runs `init_db()` on startup, which creates tables if they don’t exist.
 
 ---
 
-## Deploying via Vercel CLI (Alternative)
+## Deploying via Vercel CLI (recommended if Git deploy uses old code)
+
+Deploying from the **backend folder** with the CLI uses your **local** `backend/` code (no Git cache), so the fixed config is guaranteed to be used.
 
 1. Install the CLI: `npm i -g vercel`
 2. Log in: `vercel login`
-3. From the **repository root**:
+3. From your machine, go into the backend folder and deploy:
    ```bash
-   cd backend
+   cd "/path/to/ML Dashboard/backend"
    vercel
    ```
-4. Follow prompts. When asked for **Root Directory**, confirm it is **`.`** (current directory, i.e. `backend`).
-5. Add environment variables:
+4. First time: follow prompts (link to existing project or create new; no need to set Root Directory — you're already in `backend`).
+5. Add environment variables (if not already set in the dashboard):
    ```bash
    vercel env add DATABASE_URL
    vercel env add CORS_ORIGINS
    vercel env add SECRET_KEY
    vercel env add AUTO_SEED
    ```
-   Then run `vercel --prod` to deploy to production.
+   For `CORS_ORIGINS` you can use a plain URL: `https://your-frontend.vercel.app`
+6. Deploy to production:
+   ```bash
+   vercel --prod
+   ```
+
+The deployed app will use the code in your local `backend/` folder, including the config that reads CORS from `os.environ` (no JSON needed).
 
 ---
 

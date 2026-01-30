@@ -38,3 +38,5 @@ build/
 # Alembic
 alembic/versions/*.py
 !alembic/versions/.gitkeep
+.vercel
+.env*.local

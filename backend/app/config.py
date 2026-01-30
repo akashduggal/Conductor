@@ -1,3 +1,4 @@
+# CORS_ORIGINS: read from os.environ only (no pydantic field) — avoids JSON parse error on Vercel
 import os
 from pydantic_settings import BaseSettings
 from typing import List
