@@ -1,0 +1,58 @@
+---
+description: Git commit message best practices for this project
+alwaysApply: true
+---
+
+# Commit Message Best Practices
+
+When creating git commits for this project, follow these conventions.
+
+## Format
+
+Use **Conventional Commits** style:
+
+```
+<type>(<scope>): <short description>
+
+[optional body]
+
+[optional footer]
+```
+
+- **Type**: What kind of change (see types below).
+- **Scope** (optional): Area of the codebase, e.g. `backend`, `frontend`, `api`, `datasets`.
+- **Short description**: Imperative, lowercase after the colon, no period. Max ~50–72 chars.
+
+## Types
+
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation only
+- `style`: Formatting, whitespace, no code change
+- `refactor`: Code change that neither fixes a bug nor adds a feature
+- `perf`: Performance improvement
+- `test`: Adding or updating tests
+- `chore`: Build, tooling, config, dependencies
+- `ci`: CI/CD changes
+
+## Examples
+
+**Good:**
+- `feat(api): add pagination to datasets list`
+- `fix(backend): handle missing env in supabase client`
+- `refactor(experiments): use shared response types in API routes`
+- `chore: remove deprecated backend/app.py, update vercel.json`
+
+**Avoid:**
+- `Update backend API routes` (vague; prefer type + scope + what changed)
+- `fix stuff` (not descriptive)
+- `WIP` or `asdf` (not meaningful)
+
+## Rules
+
+1. **Imperative mood**: "add pagination" not "added pagination" or "adds pagination".
+2. **Be specific**: Describe what changed and why it matters, not just "update X".
+3. **One logical change per commit**: Split unrelated changes into separate commits when possible.
+4. **No period** at the end of the subject line.
+
+When the user asks to commit, stage changes, then write a commit message that follows this format based on the actual diff (types and files changed).
