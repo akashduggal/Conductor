@@ -10,7 +10,7 @@ router = APIRouter()
 def get_stats_overview(supabase: Client = Depends(get_supabase)):
     # Experiments: fetch all and aggregate
     exp_res = supabase.table("experiments").select("*").execute()
-    experiments = exp_res.data or []
+    experiments = (exp_res.data if exp_res else None) or []
     exp_total = len(experiments)
     exp_running = sum(1 for e in experiments if e.get("status") == "running")
     exp_completed = sum(1 for e in experiments if e.get("status") == "completed")
@@ -19,7 +19,7 @@ def get_stats_overview(supabase: Client = Depends(get_supabase)):
 
     # Datasets
     ds_res = supabase.table("datasets").select("*").execute()
-    datasets = ds_res.data or []
+    datasets = (ds_res.data if ds_res else None) or []
     ds_total = len(datasets)
     total_size_bytes = sum((d.get("size_bytes") or 0) for d in datasets)
     modality_counts = {}
@@ -29,7 +29,7 @@ def get_stats_overview(supabase: Client = Depends(get_supabase)):
 
     # Jobs
     jobs_res = supabase.table("training_jobs").select("status").execute()
-    jobs = jobs_res.data or []
+    jobs = (jobs_res.data if jobs_res else None) or []
     job_active = sum(1 for j in jobs if j.get("status") == "running")
     job_queued = sum(1 for j in jobs if j.get("status") == "pending")
 

@@ -45,12 +45,12 @@ def get_datasets(
     offset = (page - 1) * page_size
     q = q.range(offset, offset + page_size - 1)
     res = q.execute()
-    rows = res.data or []
-    total = getattr(res, "count", None) if hasattr(res, "count") else len(rows)
+    rows = (res.data if res else None) or []
+    total = getattr(res, "count", None) if res and hasattr(res, "count") else None
     if total is None:
         count_res = supabase.table("datasets").select("id", count="exact").limit(1).execute()
-        total = getattr(count_res, "count", len(rows)) or len(rows)
-    if modality and total == len(rows):
+        total = getattr(count_res, "count", None) if count_res else None
+    if total is None:
         total = len(rows)
 
     data = [_dataset_row_to_response(r) for r in rows]
@@ -71,7 +71,7 @@ def get_dataset(
     supabase: Client = Depends(get_supabase),
 ):
     res = supabase.table("datasets").select("*").eq("id", dataset_id).maybe_single().execute()
-    if not res.data:
+    if not res or not getattr(res, "data", None):
         raise HTTPException(status_code=404, detail="Dataset not found")
     return DatasetResponse(**_dataset_row_to_response(res.data))
 
@@ -84,10 +84,10 @@ def create_dataset(
     payload = dataset.model_dump()
     payload["id"] = str(uuid.uuid4())
     payload["metadata"] = payload.get("metadata") or {}
-    res = supabase.table("datasets").insert(payload).select().execute()
-    if not res.data:
+    res = supabase.table("datasets").insert(payload).execute()
+    if not res or not getattr(res, "data", None) or not res.data:
         raise HTTPException(status_code=500, detail="Insert failed")
-    row = res.data[0]
+    row = res.data[0] if isinstance(res.data, list) else res.data
     return DatasetResponse(**_dataset_row_to_response(row))
 
 
@@ -96,5 +96,5 @@ def delete_dataset(
     dataset_id: str,
     supabase: Client = Depends(get_supabase),
 ):
-    res = supabase.table("datasets").delete().eq("id", dataset_id).execute()
+    supabase.table("datasets").delete().eq("id", dataset_id).execute()
     return None

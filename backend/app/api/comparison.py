@@ -14,7 +14,7 @@ def compare_experiments(
     comparison_data = []
     for exp_id in request.experiment_ids:
         exp_res = supabase.table("experiments").select("*").eq("id", exp_id).maybe_single().execute()
-        if not exp_res.data:
+        if not exp_res or not getattr(exp_res, "data", None):
             raise HTTPException(status_code=404, detail=f"Experiment {exp_id} not found")
         experiment = exp_res.data
 
@@ -26,7 +26,7 @@ def compare_experiments(
             .limit(1)
             .execute()
         )
-        jobs = job_res.data or []
+        jobs = (job_res.data if job_res else None) or []
         if not jobs:
             continue
         job = jobs[0]
@@ -39,7 +39,7 @@ def compare_experiments(
             .order("step")
             .execute()
         )
-        metrics = metrics_res.data or []
+        metrics = (metrics_res.data if metrics_res else None) or []
 
         metrics_dict = {}
         for metric_name in request.metrics:

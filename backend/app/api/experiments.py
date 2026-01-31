@@ -58,8 +58,8 @@ def get_experiments(
     offset = (page - 1) * page_size
     q = q.range(offset, offset + page_size - 1)
     res = q.execute()
-    rows = res.data or []
-    total = getattr(res, "count", None)
+    rows = (res.data if res else None) or []
+    total = getattr(res, "count", None) if res else None
     if total is None:
         total = len(rows)
 
@@ -107,7 +107,7 @@ def get_experiment(
         .maybe_single()
         .execute()
     )
-    if not res.data:
+    if not res or not getattr(res, "data", None):
         raise HTTPException(status_code=404, detail="Experiment not found")
     exp = res.data
     dataset_name = None
@@ -141,14 +141,14 @@ def create_experiment(
     payload["config"] = payload.get("config") or {}
     if "tags" in payload and payload["tags"] is None:
         payload["tags"] = []
-    res = supabase.table("experiments").insert(payload).select().execute()
-    if not res.data:
+    res = supabase.table("experiments").insert(payload).execute()
+    if not res or not getattr(res, "data", None) or not res.data:
         raise HTTPException(status_code=500, detail="Insert failed")
-    row = res.data[0]
+    row = res.data[0] if isinstance(res.data, list) else res.data
     dataset_name = None
     if row.get("dataset_id"):
         ds = supabase.table("datasets").select("name").eq("id", row["dataset_id"]).maybe_single().execute()
-        if ds.data:
+        if ds and getattr(ds, "data", None):
             dataset_name = ds.data.get("name")
     return ExperimentResponse(**_exp_row_to_response(row, dataset_name, None))
 
@@ -159,7 +159,7 @@ def start_experiment(
     supabase: Client = Depends(get_supabase),
 ):
     res = supabase.table("experiments").select("*").eq("id", experiment_id).maybe_single().execute()
-    if not res.data:
+    if not res or not getattr(res, "data", None):
         raise HTTPException(status_code=404, detail="Experiment not found")
     experiment = res.data
 
@@ -212,7 +212,7 @@ def cancel_experiment(
         .maybe_single()
         .execute()
     )
-    if not res.data:
+    if not res or not getattr(res, "data", None):
         raise HTTPException(status_code=404, detail="Experiment not found")
     experiment = res.data
 
@@ -248,7 +248,7 @@ def delete_experiment(
     supabase: Client = Depends(get_supabase),
 ):
     res = supabase.table("experiments").select("id").eq("id", experiment_id).maybe_single().execute()
-    if not res.data:
+    if not res or not getattr(res, "data", None):
         raise HTTPException(status_code=404, detail="Experiment not found")
     supabase.table("experiments").delete().eq("id", experiment_id).execute()
     return None

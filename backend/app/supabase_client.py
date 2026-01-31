@@ -2,9 +2,11 @@
 Supabase client for the ML Dashboard.
 Uses SUPABASE_URL and SUPABASE_SERVICE_KEY from config (service role for full DB access).
 """
+import logging
 from supabase import create_client, Client
 from app.config import settings
 
+logger = logging.getLogger(__name__)
 _client: Client | None = None
 
 
@@ -20,4 +22,5 @@ def get_supabase() -> Client:
                 "On Vercel: Settings → Environment Variables → add both for Production, then Redeploy."
             )
         _client = create_client(url, key)
+        logger.info("Supabase connected (%s)", url.rstrip("/").split("/")[-1] or url)
     return _client

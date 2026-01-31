@@ -26,7 +26,7 @@ class TrainingService:
             return  # Already running
 
         res = supabase.table("training_jobs").select("*").eq("id", job_id).maybe_single().execute()
-        if not res.data:
+        if not res or not getattr(res, "data", None):
             return
 
         now = datetime.utcnow().isoformat()
@@ -51,7 +51,7 @@ class TrainingService:
 
             for epoch in range(total_epochs):
                 job_res = supabase.table("training_jobs").select("*").eq("id", job_id).maybe_single().execute()
-                if not job_res.data or job_res.data.get("status") == "cancelled":
+                if not job_res or not getattr(job_res, "data", None) or job_res.data.get("status") == "cancelled":
                     break
                 job = job_res.data
 
@@ -100,7 +100,7 @@ class TrainingService:
             }).eq("id", job_id).execute()
 
             job_res = supabase.table("training_jobs").select("experiment_id").eq("id", job_id).maybe_single().execute()
-            if job_res.data:
+            if job_res and getattr(job_res, "data", None):
                 exp_id = job_res.data["experiment_id"]
                 supabase.table("experiments").update({
                     "status": "completed",
@@ -128,7 +128,7 @@ class TrainingService:
                 "completed_at": now,
             }).eq("id", job_id).execute()
             job_res = supabase.table("training_jobs").select("experiment_id").eq("id", job_id).maybe_single().execute()
-            if job_res.data:
+            if job_res and getattr(job_res, "data", None):
                 exp_id = job_res.data["experiment_id"]
                 supabase.table("experiments").update({
                     "status": "failed",

@@ -17,14 +17,14 @@ def get_job_metrics(
     supabase: Client = Depends(get_supabase),
 ):
     job_res = supabase.table("training_jobs").select("id").eq("id", job_id).maybe_single().execute()
-    if not job_res.data:
+    if not job_res or not getattr(job_res, "data", None):
         raise HTTPException(status_code=404, detail="Job not found")
 
     q = supabase.table("metrics").select("*").eq("job_id", job_id).gte("epoch", start_epoch).order("epoch").order("step")
     if end_epoch is not None:
         q = q.lte("epoch", end_epoch)
     res = q.execute()
-    all_rows = res.data or []
+    all_rows = (res.data if res else None) or []
 
     metrics_sampled = [all_rows[i] for i in range(0, len(all_rows), step)]
 

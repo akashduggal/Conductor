@@ -12,7 +12,7 @@ def get_job(
     supabase: Client = Depends(get_supabase),
 ):
     res = supabase.table("training_jobs").select("*").eq("id", job_id).maybe_single().execute()
-    if not res.data:
+    if not res or not getattr(res, "data", None):
         raise HTTPException(status_code=404, detail="Job not found")
     j = res.data
     return TrainingJobResponse(
