@@ -1,0 +1,12 @@
+[project]
+name = "ml-dashboard-backend"
+version = "1.0.0"
+description = "ML Training Dashboard API backend"
+readme = "README.md"
+requires-python = ">=3.10"
+
+# Tells Vercel where to find the FastAPI app (fixes "No fastapi entrypoint found" on Git deploy).
+# Without this, Vercel's detector only recognizes entrypoints that define `app = FastAPI()` in-file;
+# our app lives in app.main, and index.py only re-exports it.
+[project.scripts]
+app = "app.main:app"
