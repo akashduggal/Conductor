@@ -1,0 +1,2 @@
+# Repo root: install backend deps so api/index.py can import app when Vercel builds from repo root.
+-r backend/requirements.txt

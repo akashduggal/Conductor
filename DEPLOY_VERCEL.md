@@ -49,7 +49,7 @@ Vercel serverless functions have no persistent filesystem. You **must** use a ho
 3. Enter: **`backend`**
 4. Save.
 
-This makes Vercel treat the `backend` folder as the project root so it finds `app/index.py`, `requirements.txt`, and `vercel.json`.
+This makes Vercel treat the `backend` folder as the project root so it finds `index.py`, `app/main.py`, `requirements.txt`, and `vercel.json`. **If you skip this step, Git-triggered deploys can fail with "No fastapi entrypoint found".**
 
 ---
 
@@ -166,10 +166,11 @@ The deployed app will use the code in your local `backend/` folder, including th
 
 ## What Was Changed for Vercel
 
-- **`backend/api/index.py`** — Serverless entrypoint that exports the FastAPI `app`; used with `builds` + `routes` so all requests hit the Python function.
-- **`backend/index.py`** and **`backend/app/index.py`** — Alternative entrypoints for framework auto-detection.
-- **`backend/vercel.json`** — Sets `installCommand`, `builds` (Python function from `api/index.py`), and `routes` (all paths → `api/index.py`).
+- **`backend/index.py`**, **`backend/app/index.py`**, **`backend/api/index.py`** — Entrypoints that **define** `app` in-file (e.g. `app: FastAPI = _app`) so Vercel's FastAPI detector succeeds on Git deploy; the real app lives in `app/main.py`.
+- **`backend/pyproject.toml`** — `[project.scripts] app = "app.main:app"` so Vercel can resolve the FastAPI app when using pyproject.
+- **`backend/vercel.json`** — Sets `installCommand`, `builds` (Python from `index.py`), and `routes` (all paths → `index.py`).
 - **`backend/requirements.txt`** — Added `asyncpg` for PostgreSQL when using `postgresql+asyncpg://` in `DATABASE_URL`. PyTorch remains commented out to keep the bundle under Vercel’s size limit.
+- **Repo root fallback (optional):** **`api/index.py`** and **`requirements.txt`** at repo root allow the backend to build when Root Directory is *not* set (build runs from repo root). Prefer setting Root Directory = `backend`.
 
 ---
 
@@ -180,7 +181,8 @@ The deployed app will use the code in your local `backend/` folder, including th
 | **Function size > 250 MB** | Ensure `torch`, `torchaudio`, and `torchvision` are **not** in `requirements.txt`. Use only the dependencies needed at runtime. |
 | **Database connection errors** | Use `postgresql+asyncpg://...` (with `asyncpg`). Ensure `DATABASE_URL` is set in Vercel and that the DB allows connections from Vercel’s IPs (Neon/Supabase do by default with SSL). |
 | **"Blocked by CORS policy: No 'Access-Control-Allow-Origin' header"** | In the **backend** Vercel project → **Settings → Environment Variables**, add or set **`CORS_ORIGINS`** to your frontend origin **exactly**: `https://conductor-frontend-seven.vercel.app` (no trailing slash). Then **Redeploy** the backend so the new env is applied. |
-| **404 NOT_FOUND on root or any path** | Ensure **Root Directory** is `backend`. The repo uses `vercel.json` with `builds` + `routes` so all requests go to `api/index.py`. Redeploy after changes. If 404 persists, check **Deployments → Function Logs** for build/import errors. |
+| **"No fastapi entrypoint found" on Git deploy** | **Root Directory** must be **`backend`** (Settings → General). With Root Directory set, the build runs inside `backend/` and finds `index.py`. If you cannot set Root Directory, the repo includes a fallback: root-level `api/index.py` and `requirements.txt` so the build can succeed from repo root (not recommended; prefer Root Directory = `backend`). |
+| **404 NOT_FOUND on root or any path** | Ensure **Root Directory** is `backend`. The repo uses `vercel.json` with `builds` + `routes` so all requests go to the Python entrypoint. Redeploy after changes. If 404 persists, check **Deployments → Function Logs** for build/import errors. |
 | **Tables don’t exist** | Run `init_db()` once (by calling the API so the app starts) or run Alembic migrations locally against `DATABASE_URL`. |
 
 ---

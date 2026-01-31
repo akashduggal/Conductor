@@ -1,2 +1,5 @@
-# Vercel entrypoint: FastAPI looks for app at app/index.py, app/app.py, or app/server.py
-from app.main import app
+# Vercel FastAPI entrypoint: detector requires 'app' to be defined in this file.
+from fastapi import FastAPI
+from app.main import app as _app
+
+app: FastAPI = _app
