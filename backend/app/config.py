@@ -5,7 +5,7 @@ from typing import List
 
 
 def _get_cors_origins_list() -> List[str]:
-    """Read CORS_ORIGINS from env (comma-separated); never parsed as JSON (avoids Vercel/pydantic-settings issue)."""
+    """Read CORS_ORIGINS from env (comma-separated). Required on Vercel: set to your frontend URL, e.g. https://conductor-frontend-seven.vercel.app"""
     raw = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000")
     return [x.strip() for x in raw.split(",") if x.strip()]
 

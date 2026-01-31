@@ -59,12 +59,12 @@ In the Vercel project, go to **Settings → Environment Variables** and add:
 
 | Name | Value | Notes |
 |------|--------|--------|
-| `DATABASE_URL` | `postgresql+asyncpg://USER:PASSWORD@HOST/DB?sslmode=require` | From Step 1 (Neon or Supabase). **Required.** |
-| `CORS_ORIGINS` | `https://your-frontend.vercel.app` | Your frontend URL. **If you see "error parsing value for field cors_origins"**, the live build may be old — set this to a **JSON array** instead: `["https://your-frontend.vercel.app"]` (then redeploy). |
-| `API_V1_PREFIX` | `/api/v1` | Leave as-is unless you changed it in code. |
+| `SUPABASE_URL` | `https://YOUR_PROJECT.supabase.co` | From Supabase Dashboard → Settings → API. **Required.** |
+| `SUPABASE_SERVICE_KEY` | `eyJ...` (service_role key) | From Supabase Dashboard → Settings → API. **Required.** |
+| **`CORS_ORIGINS`** | **`https://conductor-frontend-seven.vercel.app`** | **Your frontend origin (no trailing slash). Required to fix "blocked by CORS policy".** Multiple origins: comma-separated. |
 | `SECRET_KEY` | A long random string | Generate one (e.g. `openssl rand -hex 32`) for production. |
-| `AUTO_SEED` | `true` | Set to `true` to seed demo data on first deploy; set to `false` after first run or for production. |
-| `REDIS_URL` | (optional) | Not used by the API today; you can leave unset or use [Upstash](https://upstash.com) later. |
+| `AUTO_SEED` | `false` or `true` | Set to `false` in production after first run. |
+| `REDIS_URL` | (optional) | Not used by the API today; you can leave unset. |
 
 Apply these to **Production** (and optionally Preview if you use branches).
 
@@ -130,8 +130,8 @@ The app runs `init_db()` on startup, which creates tables if they don’t exist.
 
 1. Deploy your frontend (e.g. same repo with Root Directory `frontend`, or a separate Vercel project).
 2. Set the frontend’s **API base URL** to your backend URL, e.g. `https://<your-project-name>.vercel.app`.
-3. In Vercel **backend** env vars, set **CORS_ORIGINS** to your frontend URL, e.g. `https://your-frontend.vercel.app` (comma-separated if you have several).
-4. Redeploy the backend after changing **CORS_ORIGINS** so the new value is applied.
+3. In the **backend** Vercel project, set **CORS_ORIGINS** to your frontend origin exactly, e.g. `https://conductor-frontend-seven.vercel.app` (no trailing slash; comma-separated for multiple).
+4. **Redeploy the backend** after changing CORS_ORIGINS so the new value is used.
 
 ---
 
@@ -179,7 +179,7 @@ The deployed app will use the code in your local `backend/` folder, including th
 |-------|------------|
 | **Function size > 250 MB** | Ensure `torch`, `torchaudio`, and `torchvision` are **not** in `requirements.txt`. Use only the dependencies needed at runtime. |
 | **Database connection errors** | Use `postgresql+asyncpg://...` (with `asyncpg`). Ensure `DATABASE_URL` is set in Vercel and that the DB allows connections from Vercel’s IPs (Neon/Supabase do by default with SSL). |
-| **CORS errors from frontend** | Set `CORS_ORIGINS` to the exact frontend origin (e.g. `https://your-app.vercel.app`), then redeploy the backend. |
+| **"Blocked by CORS policy: No 'Access-Control-Allow-Origin' header"** | In the **backend** Vercel project → **Settings → Environment Variables**, add or set **`CORS_ORIGINS`** to your frontend origin **exactly**: `https://conductor-frontend-seven.vercel.app` (no trailing slash). Then **Redeploy** the backend so the new env is applied. |
 | **404 NOT_FOUND on root or any path** | Ensure **Root Directory** is `backend`. The repo uses `vercel.json` with `builds` + `routes` so all requests go to `api/index.py`. Redeploy after changes. If 404 persists, check **Deployments → Function Logs** for build/import errors. |
 | **Tables don’t exist** | Run `init_db()` once (by calling the API so the app starts) or run Alembic migrations locally against `DATABASE_URL`. |
 
@@ -187,8 +187,8 @@ The deployed app will use the code in your local `backend/` folder, including th
 
 ## Summary Checklist
 
-- [ ] Hosted Postgres created (Neon or Supabase); `DATABASE_URL` uses `postgresql+asyncpg://`
-- [ ] Vercel project created; **Root Directory** = `backend`
-- [ ] Env vars set: `DATABASE_URL`, `CORS_ORIGINS`, `SECRET_KEY`, `AUTO_SEED`
+- [ ] Supabase project created; tables created via `supabase/schema.sql`
+- [ ] Vercel backend project created; **Root Directory** = `backend`
+- [ ] Env vars set: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, **`CORS_ORIGINS`** (e.g. `https://conductor-frontend-seven.vercel.app`), `SECRET_KEY`
 - [ ] Deployed; `/health` returns `{"status":"healthy"}`
-- [ ] Frontend API base URL points to backend URL; backend `CORS_ORIGINS` includes frontend origin
+- [ ] Frontend `VITE_API_URL` points to backend; backend **CORS_ORIGINS** = frontend origin (then redeploy backend)
