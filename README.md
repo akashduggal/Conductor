@@ -2,6 +2,14 @@
 
 A production-ready monorepo application for managing ML training experiments, datasets, and real-time metrics visualization.
 
+## 🌐 Live Demo
+
+**Conductor – ML Training Orchestration Platform** (deployed on Vercel):
+
+- **Frontend:** [https://conductor-frontend-seven.vercel.app/](https://conductor-frontend-seven.vercel.app/)
+
+---
+
 ## 🏗️ Monorepo Structure
 
 ```
